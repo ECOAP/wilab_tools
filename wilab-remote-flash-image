@@ -1,0 +1,51 @@
+#!/bin/sh
+
+##################################################
+# Name: flash-node
+# Description: Flash an image on a single node.
+# Script Maintainer: Carlo Vallati <c.vallati@iet.unipi.it>
+#
+# Part of PINT, Pisa Iot Network Testbed
+##################################################
+
+
+if [ "$#" -ne 2 ] ; then
+  echo "Usage: $0 [IP] [IMAGE]" >&2
+  exit 1
+fi
+
+ip=$1
+image=$2
+
+arm-none-eabi-objcopy -O binary --gap-fill 0xff ${image} /home/carlo/Testbed/wishful/tools_wilab/tmp/${image}.bin
+
+addr=`arm-none-eabi-objdump -h ${image} | grep -B1 LOAD | grep -Ev 'LOAD|\-\-' | awk '{print "0x" $5}' | sort -g | head -1`
+
+echo "Flashing ${ip}..."
+
+#ssh -n ${USER}@${ip} "bsl --telosb -c /dev/ttyUSB0 -r -e -I -p /export/nfs/tmp/${image}.ihex 2>&1 | cat"
+
+n=0
+until [ $n -ge 4 ]
+do
+
+scp -o StrictHostKeyChecking=no -oPort=22 -i '/home/carlo/Testbed/wishful/tools_wilab/unipi_nopwd.pem' /home/carlo/Testbed/wishful/tools_wilab/tmp/${image}.bin unipi@${ip}:/groups/wall2-ilabt-iminds-be/ecoap/tmp/
+
+ssh -o StrictHostKeyChecking=no -oPort=22 -i '/home/carlo/Testbed/wishful/tools_wilab/unipi_nopwd.pem' unipi@${ip} "sudo chmod 777 /dev/ttyUSB0"
+
+out=$(ssh -o StrictHostKeyChecking=no -oPort=22 -i '/home/carlo/Testbed/wishful/tools_wilab/unipi_nopwd.pem' unipi@${ip} "/groups/wall2-ilabt-iminds-be/ecoap/tools/cc2538-bsl.py -e -w -v -b 460800 -a ${addr} -p /dev/ttyUSB0 /groups/wall2-ilabt-iminds-be/ecoap/tmp/${image}.bin" 2>&1)
+
+if echo "$out" | grep -q "error" 
+then
+    echo "Error"
+    n=$(expr $n + 1)
+    echo $out
+    sleep 10
+else
+    echo "OK"
+    break
+fi
+
+done
+
+echo $out

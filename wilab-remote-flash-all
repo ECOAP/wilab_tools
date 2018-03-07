@@ -1,0 +1,44 @@
+#!/bin/sh
+
+##################################################
+# Name: flash-all
+# Description: Flash an image on all the nodes 
+# Script Maintainer: Carlo Vallati <c.vallati@iet.unipi.it>
+#
+# Part of PINT, Pisa Iot Network Testbed
+##################################################
+
+
+if [ "$#" -ne 1 ] ; then
+  echo "Usage: $0 [IMAGE]" >&2
+  exit 1
+fi
+
+image=$1
+filename=`echo $image | cut -d"." -f1`
+
+id=0
+while read p; do
+  id=$((id+1))
+  echo "Recompile image for ID $id"
+  
+  touch ../$filename.c
+  make TARGET=zoul BOARD=remote-revb NODEID=$id $filename
+
+  mv $filename.elf $filename-$id.elf
+
+done < /home/carlo/Testbed/wishful/tools_wilab/nodes.conf
+
+id=0
+while read p; do
+  id=$((id+1))
+
+  echo $p
+  wilab-remote-flash-image $p $filename-$id.elf &
+done < /home/carlo/Testbed/wishful/tools_wilab/nodes.conf
+
+wait
+
+rm $filename-*.elf
+
+echo "Flash completed!"

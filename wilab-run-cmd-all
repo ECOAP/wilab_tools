@@ -1,0 +1,22 @@
+#!/bin/sh
+
+##################################################
+# Name: run-cmd-all
+# Description: Run a command on all the nodes
+# Script Maintainer: Carlo Vallati <c.vallati@iet.unipi.it>
+#
+# Part of PINT, Pisa Iot Network Testbed
+##################################################
+
+
+if [ "$#" -ne 1 ] ; then
+  echo "Usage: $0 [CMD]" >&2
+  exit 1
+fi
+
+cmd=$1
+
+while read p; do
+  echo "${p} ${cmd}"
+  ssh -o StrictHostKeyChecking=no -n -i '/home/carlo/Testbed/wishful/tools_wilab/unipi_nopwd.pem' unipi@${p} "${cmd}"
+done < /home/carlo/Testbed/wishful/tools_wilab/nodes.conf
